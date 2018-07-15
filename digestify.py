@@ -31,6 +31,8 @@ def main():
                         default='sha1')
     parser.add_argument('--generic', '-g', action='store_true',
                         help=f"treat ZONEMD as an unknown type (RFC 3597)")
+    parser.add_argument('--placeholder', '-p', action='store_true',
+                        help='output a placeholder digest')
     parser.add_argument('filename', nargs='+')
     args = parser.parse_args()
 
@@ -58,9 +60,10 @@ def main():
                 print(f"{filename} does NOT have a valid digest: {err}")
                 exit_code = 1
         else:
-            zonemd.add_zonemd(zone, zonemd_algorithm=args.algorithm)
-            zone_rr = zonemd.update_zonemd(zone,
-                                           zonemd_algorithm=args.algorithm)
+            zone_rr = zonemd.add_zonemd(zone, zonemd_algorithm=args.algorithm)
+            if not args.placeholder:
+                zone_rr = zonemd.update_zonemd(zone,
+                                               zonemd_algorithm=args.algorithm)
             digest_hex = binascii.b2a_hex(zone_rr.digest).decode()
             zonemd_filename = filename + ".zonemd"
             with open(zonemd_filename, "w") as output_fp:

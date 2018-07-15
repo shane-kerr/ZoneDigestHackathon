@@ -95,7 +95,27 @@ broken.zone.zonemd does NOT have a valid digest: ZONEMD digest 8894b1decd04c4957
 
 ## Working with Signed Zones
 
-T.B.D.
+_Note: Signed zone support is completely untested_
+
+There are several steps required to add a zone digest to a secure zone:
+
+1. Add a placeholder ZONEMD record to the zone.
+2. Sign the zone.
+3. Update the ZONEMD with the digest of the signed zone.
+4. Sign the resulting ZONEMD record.
+
+You can use the "-p" flag to add the placeholder record:
+
+```
+$ python3 digestify.py -p vanaheimr.cf.zone
+Wrote ZONEMD digest 0000000000000000000000000000000000000000 to vanaheimr.cf.zone.zonemd
+$ dnssec-signzone vanheimr.cf.zone.zonemd ...
+   ...
+$ python3 digestify.py vanaheimr.cf.zonemd.signed
+   ...
+$ dnssec-signzone vanaheimr.cf.zone.zonemd.signed.zonemd ...
+   ...
+```
 
 ## Development
 

@@ -141,7 +141,10 @@ def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
     @var zonemd_ttl: The TTL to use for the ZONEMD record, or None to
                      get this from the zone SOA.
     @type zonemd_ttl: int
+    @rtype: dns.rdataset.Rdataset
     @raises ZoneDigestUnknownAlgorithm: zonemd_algorithm is unknown
+
+    Returns the placeholder ZONEMD record added, as a ZONEMD object.
     """
     if zonemd_algorithm in ('sha1', 1):
         algorithm = 1
@@ -181,6 +184,8 @@ def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
                                algorithm, empty_digest)
     placeholder.add(placeholder_rdata)
     zone.replace_rdataset(zone_name, placeholder)
+
+    return placeholder_rdata
 
 
 def calculate_zonemd(zone, zonemd_algorithm='sha1'):
