@@ -16,14 +16,6 @@ import dns.zone
 
 import zonemd
 
-# Monkey-patch the dns.rdatatype module so we print ZONEMD when we dump
-# the file.
-# pylint: disable=protected-access
-dns.rdatatype._by_value[zonemd.ZONEMD_RTYPE] = "ZONEMD"
-dns.rdatatype._by_text["ZONEMD"] = zonemd.ZONEMD_RTYPE
-dns.rdtypes.ANY.__all__.append("ZONEMD")
-dns.rdata._rdata_modules[(dns.rdataclass.IN, zonemd.ZONEMD_RTYPE)] = zonemd
-
 
 def main():
     """
@@ -37,8 +29,22 @@ def main():
                         help="set algorithm to use (defaults to sha1)",
                         choices=('sha1', 'sha256', 'gost', 'sha384'),
                         default='sha1')
+    parser.add_argument('--generic', '-g', action='store_true',
+                        help=f"treat ZONEMD as an unknown type (RFC 3597)")
     parser.add_argument('filename', nargs='+')
     args = parser.parse_args()
+
+    # pylint: disable=protected-access
+    if args.generic:
+        zonemd.zonemd_as_generic = True
+    else:
+        # Monkey-patch the dns.rdatatype module so we use the
+        # presentation format.
+        dns.rdatatype._by_value[zonemd.ZONEMD_RTYPE] = "ZONEMD"
+        dns.rdatatype._by_text["ZONEMD"] = zonemd.ZONEMD_RTYPE
+        dns.rdtypes.ANY.__all__.append("ZONEMD")
+        mod_tuple = (dns.rdataclass.IN, zonemd.ZONEMD_RTYPE)
+        dns.rdata._rdata_modules[mod_tuple] = zonemd
 
     exit_code = 0
     for filename in args.filename:

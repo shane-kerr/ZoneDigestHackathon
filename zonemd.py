@@ -33,6 +33,9 @@ import pygost.gost341194
 # The RTYPE for ZONEMD (use private-use number for now).
 ZONEMD_RTYPE = 65432
 
+# Flag to output ZONEMD as an unknown type.
+ZONEMD_AS_GENERIC = False
+
 
 class ZONEMD(dns.rdata.Rdata):
     """
@@ -70,14 +73,31 @@ class ZONEMD(dns.rdata.Rdata):
         Convert to text format. This is also referred to as the
         presentation format.
         """
-        digest_hex = binascii.b2a_hex(self.digest).decode()
-        return f'{self.serial} {self.algorithm} {digest_hex}'
+        if ZONEMD_AS_GENERIC:
+            rdata = self.to_digestable()
+            text = (r"\# " + str(len(rdata)) + " " +
+                    binascii.b2a_hex(rdata).decode())
+        else:
+            digest_hex = binascii.b2a_hex(self.digest).decode()
+            text = f'{self.serial} {self.algorithm} {digest_hex}'
+        return text
 
+    # pylint: disable=too-many-arguments
     @classmethod
     def from_text(cls, rdclass, rdtype, tok, origin=None, relativize=True):
         serial = tok.get_uint32()
         algorithm = tok.get_uint8()
         digest = binascii.a2b_hex(tok.get_string())
+        return cls(rdclass, serial, algorithm, digest)
+
+    def to_wire(self, file, compress=None, origin=None):
+        file.write(self.to_digestable())
+
+    # pylint: disable=too-many-arguments
+    @classmethod
+    def from_wire(cls, rdclass, rdtype, wire, current, rdlen, origin=None):
+        serial, algorithm = struct.unpack('!IB', wire[:5])
+        digest = wire[5:]
         return cls(rdclass, serial, algorithm, digest)
 
 
