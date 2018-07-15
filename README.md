@@ -24,7 +24,7 @@ $ pip install -r requirements.txt
 ```
 
 In principle the software can be run without GOST support, and so the
-**pygost** module is not strictly required, however since it's so easy
+**pygost** module is not strictly required. However since it's so easy
 to install I opted against updating the code to work without it.
 
 ## Running
@@ -41,9 +41,9 @@ This writes the zone out with the ZONEMD record added or replaced, in
 a new file with ".zonemd" added:
 
 ```
-$ grep ZONEMD vanaheimr.cf.zone.zonemd  vanaheimr.cf.zone.zonemd
+$ grep ZONEMD vanaheimr.cf.zone.zonemd zonnestelsel.tk.zone.zonemd
 vanaheimr.cf.zone.zonemd:vanaheimr.cf 300 IN ZONEMD 2017122152 1 77a11b969b88122c3ac53d8409fdba5e38e2ec50
-vanaheimr.cf.zone.zonemd:vanaheimr.cf 300 IN ZONEMD 2017122152 1 77a11b969b88122c3ac53d8409fdba5e38e2ec50
+zonnestelsel.tk.zone.zonemd:zonnestelsel.tk 300 IN ZONEMD 2017120219 1 8894b1decd04c49575ea717318f57bea2cc3589e
 ```
 
 You can specify an alternate algorithm with the "-a" flag:
@@ -66,7 +66,7 @@ $ grep TYPE6543 zonnestelsel.tk.zone.zonemd
 zonnestelsel.tk 300 IN TYPE65432 \# 25 783acfdb018894b1decd04c49575ea717318f57bea2cc3589e
 ```
 
-Validation involves using the "-c" flag to check the file:
+Validation involves using the "-c" flag to check the file(s):
 
 ```
 $ python3 digestify.py -c zonnestelsel.tk.zone.zonemd
