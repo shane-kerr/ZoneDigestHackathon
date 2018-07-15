@@ -2,11 +2,16 @@
 Take a zone file, compute the digest, and add the appropriate ZONEMD record.
 
 Usage:
-   python3 digestify.py [filename [...]]
+   python3 digestify.py [-c] [-a algorithm] [filename [...]]
 """
+import argparse
+import binascii
 import sys
 
+import dns.rdata
+import dns.rdataclass
 import dns.rdatatype
+import dns.rdtypes.ANY
 import dns.zone
 
 import zonemd
@@ -14,19 +19,49 @@ import zonemd
 # Monkey-patch the dns.rdatatype module so we print ZONEMD when we dump
 # the file.
 # pylint: disable=protected-access
-dns.rdatatype._by_value[zonemd.ZONEMD] = "ZONEMD"
+dns.rdatatype._by_value[zonemd.ZONEMD_RTYPE] = "ZONEMD"
+dns.rdatatype._by_text["ZONEMD"] = zonemd.ZONEMD_RTYPE
+dns.rdtypes.ANY.__all__.append("ZONEMD")
+dns.rdata._rdata_modules[(dns.rdataclass.IN, zonemd.ZONEMD_RTYPE)] = zonemd
 
 
 def main():
     """
     Main function, typically invoked by the __name__ check.
     """
-    for filename in sys.argv[1:]:
+    description = 'Create and verify ZONEMD digest in zone files.'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('--check', '-c', action='store_true',
+                        help="check ZONEMD in zone file")
+    parser.add_argument('--algorithm', '-a',
+                        help="set algorithm to use (defaults to sha1)",
+                        choices=('sha1', 'sha256', 'gost', 'sha384'),
+                        default='sha1')
+    parser.add_argument('filename', nargs='+')
+    args = parser.parse_args()
+
+    exit_code = 0
+    for filename in args.filename:
         zone = dns.zone.from_file(filename, check_origin=False,
-                                  relativize=False)
-        zonemd.add_zonemd(zone)
-        zonemd.update_zonemd(zone)
-        zone.to_file(sys.stdout)
+                                  relativize=False, origin='.')
+        if args.check:
+            okay, err = zonemd.validate_zonemd(zone)
+            if okay:
+                print(f"{filename} is has a valid digest")
+            else:
+                print(f"{filename} does NOT have a valid digest: f{err}")
+                exit_code = 1
+        else:
+            zonemd.add_zonemd(zone, zonemd_algorithm=args.algorithm)
+            zone_rr = zonemd.update_zonemd(zone,
+                                           zonemd_algorithm=args.algorithm)
+            digest_hex = binascii.b2a_hex(zone_rr.digest).decode()
+            zonemd_filename = filename + ".zonemd"
+            with open(zonemd_filename, "w") as output_fp:
+                zone.to_file(output_fp)
+            print(f"Wrote ZONEMD digest {digest_hex} to {zonemd_filename}")
+
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

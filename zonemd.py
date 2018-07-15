@@ -31,12 +31,12 @@ import dns.zone
 import pygost.gost341194
 
 # The RTYPE for ZONEMD (use private-use number for now).
-ZONEMD = 65432
+ZONEMD_RTYPE = 65432
 
 
-class ZoneMD(dns.rdata.Rdata):
+class ZONEMD(dns.rdata.Rdata):
     """
-    ZoneMD provides a dnspython implementation of the ZONEMD RDATA
+    ZONEMD provides a dnspython implementation of the ZONEMD RDATA
     class.
     """
 
@@ -51,8 +51,10 @@ class ZoneMD(dns.rdata.Rdata):
         @param algorithm: The digest algorithm to use, either "sha1",
                           "sha256", "gost", or "sha384".
         @type algorithm: str
+        @param digest: The digest for the zone.
+        @type digest: bytes
         """
-        super().__init__(rdclass, ZONEMD)
+        super().__init__(rdclass, ZONEMD_RTYPE)
         self.serial = serial
         self.algorithm = algorithm
         self.digest = digest
@@ -71,6 +73,13 @@ class ZoneMD(dns.rdata.Rdata):
         digest_hex = binascii.b2a_hex(self.digest).decode()
         return f'{self.serial} {self.algorithm} {digest_hex}'
 
+    @classmethod
+    def from_text(cls, rdclass, rdtype, tok, origin=None, relativize=True):
+        serial = tok.get_uint32()
+        algorithm = tok.get_uint8()
+        digest = binascii.a2b_hex(tok.get_string())
+        return cls(rdclass, serial, algorithm, digest)
+
 
 class ZoneDigestUnknownAlgorithm(Exception):
     """
@@ -78,6 +87,19 @@ class ZoneDigestUnknownAlgorithm(Exception):
     functions.
     """
     pass
+
+
+# Utility dictionary with the empty digests for each algorithm
+_EMPTY_DIGEST_BY_ALGORITHM = {
+    # SHA1
+    1: b'\0' * 20,
+    # SHA256
+    2: b'\0' * 32,
+    # GOST R 34.11-94
+    3: b'\0' * 32,
+    # SHA384
+    4: b'\0' * 48
+}
 
 
 def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
@@ -94,41 +116,38 @@ def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
     @var zone: The zone object to update.
     @type zone: dns.zone.Zone
     @var zonemd_algorithm: The name of the algorithm to use, either "sha1",
-                          "sha256", "gost", or "sha384".
+                          "sha256", "gost", or "sha384", or the number of
+                          the algorithm to use.
     @type zonemd_algorithm: str
     @var zonemd_ttl: The TTL to use for the ZONEMD record, or None to
                      get this from the zone SOA.
     @type zonemd_ttl: int
+    @raises ZoneDigestUnknownAlgorithm: zonemd_algorithm is unknown
     """
-    if zonemd_algorithm == 'sha1':
+    if zonemd_algorithm in ('sha1', 1):
         algorithm = 1
-        empty_digest = b'\0' * 20
-    elif zonemd_algorithm == 'sha256':
+    elif zonemd_algorithm in ('sha256', 2):
         algorithm = 2
-        empty_digest = b'\0' * 32
-    elif zonemd_algorithm == 'gost':
+    elif zonemd_algorithm in ('gost', 3):
         algorithm = 3
-        empty_digest = b'\0' * 32
-    elif zonemd_algorithm == 'sha384':
+    elif zonemd_algorithm in ('sha384', 4):
         algorithm = 4
-        empty_digest = b'\0' * 48
     else:
         msg = f'Unknown digest {zonemd_algorithm}'
         raise ZoneDigestUnknownAlgorithm(msg)
 
+    empty_digest = _EMPTY_DIGEST_BY_ALGORITHM[algorithm]
+
     # Remove any existing ZONEMD from the zone.
     # Also find the first name, which will be the zone name.
     for name in zone:
-        zone.delete_rdataset(name, ZONEMD)
+        zone.delete_rdataset(name, ZONEMD_RTYPE)
     zone_name = min(zone.keys())
 
-    # Sort the names in the zone. This is needed for canonization,
-    # and also has the benefit of putting the SOA name as the first
-    # name.
-    sorted_names = sorted(zone.keys())
-    zone_name = sorted_names[0]
+    # Get the zone name.
+    zone_name = min(zone.keys())
 
-    # Get the SOA
+    # Get the SOA.
     soa_rdataset = zone.get_rdataset(zone_name, dns.rdatatype.SOA)
     soa = soa_rdataset.items[0]
 
@@ -137,46 +156,41 @@ def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
         zonemd_ttl = soa_rdataset.ttl
 
     # Build placeholder ZONEMD and add to the zone.
-    placeholder = dns.rdataset.Rdataset(dns.rdataclass.IN, ZONEMD)
+    placeholder = dns.rdataset.Rdataset(dns.rdataclass.IN, ZONEMD_RTYPE)
     placeholder.update_ttl(zonemd_ttl)
-    placeholder_rdata = ZoneMD(dns.rdataclass.IN, soa.serial,
+    placeholder_rdata = ZONEMD(dns.rdataclass.IN, soa.serial,
                                algorithm, empty_digest)
     placeholder.add(placeholder_rdata)
     zone.replace_rdataset(zone_name, placeholder)
 
 
-def update_zonemd(zone, zonemd_algorithm='sha1'):
+def calculate_zonemd(zone, zonemd_algorithm='sha1'):
     """
-    Calculate the digest of the zone and update the ZONEMD record's
-    digest value with that.
+    Calculate the digest of the zone.
 
-    The ZONEMD record must already be present, for example having been
-    added by the add_zonemd() function.
+    Returns the digest for the zone.
 
-    This function does *not* change the serial value of the ZONEMD
-    record.
-
-    @var zone: The zone object to update.
+    @var zone: The zone object to digest.
     @type zone: dns.zone.Zone
     @var zonemd_algorithm: The name of the algorithm to use, either "sha1",
-                          "sha256", "gost", or "sha384".
+                          "sha256", "gost", or "sha384", or the number of
+                          the algorithm to use.
     @type zonemd_algorithm: str
+    @raises ZoneDigestUnknownAlgorithm: zonemd_algorithm is unknown
+    @rtype: bytes
     """
-    if zonemd_algorithm == 'sha1':
+    if zonemd_algorithm in ('sha1', 1):
         hashing = hmac.new(b'', digestmod='sha1')
-    elif zonemd_algorithm == 'sha256':
+    elif zonemd_algorithm in ('sha256', 2):
         hashing = hmac.new(b'', digestmod='sha256')
-    elif zonemd_algorithm == 'gost':
+    elif zonemd_algorithm in ('gost', 3):
         # pylint: disable=no-member
         hashing = hmac.new(b'', digestmod=pygost.gost331194)
-    elif zonemd_algorithm == 'sha384':
+    elif zonemd_algorithm in ('sha384', 4):
         hashing = hmac.new(b'', digestmod='sha384')
 
-    # Sort the names in the zone. This is needed for canonization,
-    # and also has the benefit of putting the SOA name as the first
-    # name.
+    # Sort the names in the zone. This is needed for canonization.
     sorted_names = sorted(zone.keys())
-    zone_name = sorted_names[0]
 
     # Iterate across each name in canonical order.
     for name in sorted_names:
@@ -189,7 +203,7 @@ def update_zonemd(zone, zonemd_algorithm='sha1'):
         for rdataset in sorted_rdatasets:
             # Skip the RRSIG for ZONEMD.
             if rdataset.rdtype == dns.rdatatype.RRSIG:
-                if rdataset.covers == ZONEMD:
+                if rdataset.covers == ZONEMD_RTYPE:
                     print("DEBUG - skipping RRSIG")
                     continue
 
@@ -209,6 +223,82 @@ def update_zonemd(zone, zonemd_algorithm='sha1'):
                 hashing.update(struct.pack('!H', len(wire_rr)))
                 hashing.update(wire_rr)
 
-    # After we are done, change the digest value in the ZONEMD record.
-    zonemd = zone.find_rdataset(zone_name, ZONEMD)
-    zonemd.items[0].digest = hashing.digest()
+    return hashing.digest()
+
+
+def update_zonemd(zone, zonemd_algorithm='sha1'):
+    """
+    Calculate the digest of the zone and update the ZONEMD record's
+    digest value with that.
+
+    The ZONEMD record must already be present, for example having been
+    added by the add_zonemd() function.
+
+    This function does *not* change the serial value of the ZONEMD
+    record.
+
+    @var zone: The zone object to update.
+    @type zone: dns.zone.Zone
+    @var zonemd_algorithm: The name of the algorithm to use, either "sha1",
+                          "sha256", "gost", or "sha384".
+    @type zonemd_algorithm: str
+    @rtype: dns.rdataset.Rdataset
+    @raises ZoneDigestUnknownAlgorithm: zonemd_algorithm is unknown
+
+    Returns the ZONEMD record added, as a ZONEMD object.
+    """
+    zone_name = min(zone.keys())
+    digest = calculate_zonemd(zone, zonemd_algorithm)
+    zonemd = zone.find_rdataset(zone_name, ZONEMD_RTYPE).items[0]
+    zonemd.digest = digest
+    return zonemd
+
+
+def validate_zonemd(zone):
+    """
+    Validate the digest of the zone.
+
+    @var zone: The zone object to validate.
+    @type zone: dns.zone.Zone
+    @rtype: (bool, str) tuple
+
+    Returns a tuple of (success code, error message). The success code
+    is True if the digest is correct, and False otherwise. The error
+    message is "" if there is no error, otherwise a description of the
+    problem.
+    """
+    # Get the SOA and ZONEMD records for the zone.
+    zone_name = min(zone.keys())
+    soa_rdataset = zone.get_rdataset(zone_name, dns.rdatatype.SOA)
+    soa = soa_rdataset.items[0]
+    zonemd = zone.find_rdataset(zone_name, ZONEMD_RTYPE).items[0]
+
+    # Verify that the SOA matches between the SOA and the ZONEMD.
+    if soa.serial != zonemd.serial:
+        err = (f"SOA serial {soa.serial} does not " +
+               f"match ZONEMD serial {zonemd.serial}")
+        return False, err
+
+    # Verify that we understand the digest algorithm.
+    if zonemd.algorithm not in _EMPTY_DIGEST_BY_ALGORITHM:
+        err = f"Unknown digest algorithm {zonemd.algorithm}"
+        return False, err
+
+    # Put a placeholder in for the ZONEMD.
+    original_digest = zonemd.digest
+    zonemd.digest = _EMPTY_DIGEST_BY_ALGORITHM[zonemd.algorithm]
+
+    # Calculate the digest and restore ZONEMD.
+    digest = calculate_zonemd(zone, zonemd.algorithm)
+    zonemd.digest = original_digest
+
+    # Verify the digest in the zone matches the calculated value.
+    if digest != zonemd.digest:
+        zonemd_hex = binascii.b2a_hex(zonemd.digest).decode()
+        digest_hex = binascii.b2a_hex(digest).decode()
+        err = (f"ZONEMD digest {zonemd_hex} does not " +
+               f"match calculated digest {digest_hex}")
+        return False, err
+
+    # Everything matches, enjoy your zone.
+    return True, ""
