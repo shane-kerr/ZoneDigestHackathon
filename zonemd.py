@@ -51,9 +51,8 @@ class ZONEMD(dns.rdata.Rdata):
         @param serial: The ZONEMD serial number for the RDATA (which should be
                        the same as the SOA serial number).
         @type serial: int
-        @param algorithm: The digest algorithm to use, either "sha1",
-                          "sha256", "gost", or "sha384".
-        @type algorithm: str
+        @param algorithm: The digest algorithm to use.
+        @type algorithm: int
         @param digest: The digest for the zone.
         @type digest: bytes
         """
@@ -205,7 +204,7 @@ def calculate_zonemd(zone, zonemd_algorithm='sha1'):
         hashing = hmac.new(b'', digestmod='sha256')
     elif zonemd_algorithm in ('gost', 3):
         # pylint: disable=no-member
-        hashing = hmac.new(b'', digestmod=pygost.gost331194)
+        hashing = hmac.new(b'', digestmod=pygost.gost341194)
     elif zonemd_algorithm in ('sha384', 4):
         hashing = hmac.new(b'', digestmod='sha384')
 
@@ -224,7 +223,6 @@ def calculate_zonemd(zone, zonemd_algorithm='sha1'):
             # Skip the RRSIG for ZONEMD.
             if rdataset.rdtype == dns.rdatatype.RRSIG:
                 if rdataset.covers == ZONEMD_RTYPE:
-                    print("DEBUG - skipping RRSIG")
                     continue
 
             # Save the wire format of the type, class, and TTL for later use.

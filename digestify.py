@@ -36,7 +36,7 @@ def main():
 
     # pylint: disable=protected-access
     if args.generic:
-        zonemd.zonemd_as_generic = True
+        zonemd.ZONEMD_AS_GENERIC = True
     else:
         # Monkey-patch the dns.rdatatype module so we use the
         # presentation format.
@@ -55,7 +55,7 @@ def main():
             if okay:
                 print(f"{filename} is has a valid digest")
             else:
-                print(f"{filename} does NOT have a valid digest: f{err}")
+                print(f"{filename} does NOT have a valid digest: {err}")
                 exit_code = 1
         else:
             zonemd.add_zonemd(zone, zonemd_algorithm=args.algorithm)
