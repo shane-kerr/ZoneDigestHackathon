@@ -33,8 +33,8 @@ You can generate the digest across any number of zone files:
 
 ```
 $ python3 digestify.py vanaheimr.cf.zone zonnestelsel.tk.zone
-Wrote ZONEMD digest 77a11b969b88122c3ac53d8409fdba5e38e2ec50 to vanaheimr.cf.zone.zonemd
-Wrote ZONEMD digest 8894b1decd04c49575ea717318f57bea2cc3589e to zonnestelsel.tk.zone.zonemd
+Wrote ZONEMD digest 3858b487874286ff34b47aa9190596bc3c9d29c4 to vanaheimr.cf.zone.zonemd
+Wrote ZONEMD digest 9dd24e284e7af7141d09d50c6360b80a823e9d54 to zonnestelsel.tk.zone.zonemd
 ```
 
 This writes the zone out with the ZONEMD record added or replaced, in
@@ -42,17 +42,17 @@ a new file with ".zonemd" added:
 
 ```
 $ grep ZONEMD vanaheimr.cf.zone.zonemd zonnestelsel.tk.zone.zonemd
-vanaheimr.cf.zone.zonemd:vanaheimr.cf 300 IN ZONEMD 2017122152 1 77a11b969b88122c3ac53d8409fdba5e38e2ec50
-zonnestelsel.tk.zone.zonemd:zonnestelsel.tk 300 IN ZONEMD 2017120219 1 8894b1decd04c49575ea717318f57bea2cc3589e
+vanaheimr.cf.zone.zonemd:vanaheimr.cf 300 IN ZONEMD 2017122152 1 3858b487874286ff34b47aa9190596bc3c9d29c4
+zonnestelsel.tk.zone.zonemd:zonnestelsel.tk 300 IN ZONEMD 2017120219 1 9dd24e284e7af7141d09d50c6360b80a823e9d54
 ```
 
 You can specify an alternate algorithm with the "-a" flag:
 
 ```
 $ python3 digestify.py -a gost vanaheimr.cf.zone
-Wrote ZONEMD digest 5ac0a398ee0f5c3bcfc1e78e0a976bf8916cab4a6c3c0f97362a23dbc79f6fdb to vanaheimr.cf.zone.zonemd
+Wrote ZONEMD digest 71f03c16524686592b85e2ea732afef7685563c1e127e66da83212cc3a532eb6 to vanaheimr.cf.zone.zonemd
 $ grep ZONEMD vanaheimr.cf.zone.zonemd
-vanaheimr.cf 300 IN ZONEMD 2017122152 3 5ac0a398ee0f5c3bcfc1e78e0a976bf8916cab4a6c3c0f97362a23dbc79f6fdb
+vanaheimr.cf 300 IN ZONEMD 2017122152 3 71f03c16524686592b85e2ea732afef7685563c1e127e66da83212cc3a532eb6
 ```
 
 If you are planning on importing the zone file into a server that does
@@ -61,9 +61,9 @@ generic output in the style of RFC 3597:
 
 ```
 $ python3 digestify.py -g zonnestelsel.tk.zone
-Wrote ZONEMD digest 8894b1decd04c49575ea717318f57bea2cc3589e to zonnestelsel.tk.zone.zonemd
-$ grep TYPE6543 zonnestelsel.tk.zone.zonemd
-zonnestelsel.tk 300 IN TYPE65432 \# 25 783acfdb018894b1decd04c49575ea717318f57bea2cc3589e
+Wrote ZONEMD digest 9dd24e284e7af7141d09d50c6360b80a823e9d54 to zonnestelsel.tk.zone.zonemd
+$ grep TYPE zonnestelsel.tk.zone.zonemd
+zonnestelsel.tk 300 IN TYPE65317 \# 25 783acfdb019dd24e284e7af7141d09d50c6360b80a823e9d54
 ```
 
 Validation involves using the "-c" flag to check the file(s):
@@ -77,20 +77,20 @@ Any error will be reported with some hopefully helpful information:
 
 ```
 $ python3 digestify.py -a sha256 zonnestelsel.tk.zone
-Wrote ZONEMD digest 8c3701dee6b211c6e5d4d26b030f307e8b6312001cdebaa70ff80ac2f88187a5 to zonnestelsel.tk.zone.zonemd
+Wrote ZONEMD digest ae0b88b5d9784ded8ed2e497791c71e8accb70ea3c708fdc73f34255da66cb69 to zonnestelsel.tk.zone.zonemd
 $ sed 's/ 2 / 9 /' zonnestelsel.tk.zone.zonemd > broken.zone.zonemd
 $ python3 digestify.py -c broken.zone.zonemd
 broken.zone.zonemd does NOT have a valid digest: Unknown digest algorithm 9
 $ python3 digestify.py zonnestelsel.tk.zone
-Wrote ZONEMD digest 8894b1decd04c49575ea717318f57bea2cc3589e to zonnestelsel.tk.zone.zonemd
+Wrote ZONEMD digest 9dd24e284e7af7141d09d50c6360b80a823e9d54 to zonnestelsel.tk.zone.zonemd
 $ sed 's/ZONEMD 2/ZONEMD 3/' zonnestelsel.tk.zone.zonemd > broken.zone.zonemd
 $ python3 digestify.py -c broken.zone.zonemd
 broken.zone.zonemd does NOT have a valid digest: SOA serial 2017120219 does not match ZONEMD serial 3017120219
 $ python3 digestify.py zonnestelsel.tk.zone.zonemd
-Wrote ZONEMD digest 8894b1decd04c49575ea717318f57bea2cc3589e to zonnestelsel.tk.zone.zonemd
+Wrote ZONEMD digest 9dd24e284e7af7141d09d50c6360b80a823e9d54 to zonnestelsel.tk.zone.zonemd
 $ sed 's/900/901/' zonnestelsel.tk.zone.zonemd > broken.zone.zonemd
 $ python3 digestify.py -c broken.zone.zonemd
-broken.zone.zonemd does NOT have a valid digest: ZONEMD digest 8894b1decd04c49575ea717318f57bea2cc3589e does not match calculated digest b378c94f5ae01484bb0e3665bbc61a8844bbca6a
+broken.zone.zonemd does NOT have a valid digest: ZONEMD digest 9dd24e284e7af7141d09d50c6360b80a823e9d54 does not match calculated digest 3aed2facd15590f8b819827dac2f8e046ab32536
 ```
 
 ## Working with Signed Zones
