@@ -20,7 +20,7 @@ functions to support a two-step process:
    record can be signed if desired.
 """
 import binascii
-import hmac
+import hashlib
 import struct
 
 import dns.rdata
@@ -31,7 +31,7 @@ import dns.zone
 import pygost.gost341194
 
 # The RTYPE for ZONEMD (use private-use number for now).
-ZONEMD_RTYPE = 65432
+ZONEMD_RTYPE = 65317
 
 # Flag to output ZONEMD as an unknown type.
 ZONEMD_AS_GENERIC = False
@@ -78,7 +78,8 @@ class ZONEMD(dns.rdata.Rdata):
                     binascii.b2a_hex(rdata).decode())
         else:
             digest_hex = binascii.b2a_hex(self.digest).decode()
-            text = f'{self.serial} {self.algorithm} {digest_hex}'
+            text = (str(self.serial) + ' ' +
+                    str(self.algorithm) + ' ' + digest_hex)
         return text
 
     # pylint: disable=too-many-arguments
@@ -155,7 +156,7 @@ def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
     elif zonemd_algorithm in ('sha384', 4):
         algorithm = 4
     else:
-        msg = f'Unknown digest {zonemd_algorithm}'
+        msg = 'Unknown digest ' + zonemd_algorithm
         raise ZoneDigestUnknownAlgorithm(msg)
 
     empty_digest = _EMPTY_DIGEST_BY_ALGORITHM[algorithm]
@@ -204,14 +205,14 @@ def calculate_zonemd(zone, zonemd_algorithm='sha1'):
     @rtype: bytes
     """
     if zonemd_algorithm in ('sha1', 1):
-        hashing = hmac.new(b'', digestmod='sha1')
+        hashing = hashlib.sha1()
     elif zonemd_algorithm in ('sha256', 2):
-        hashing = hmac.new(b'', digestmod='sha256')
+        hashing = hashlib.sha256()
     elif zonemd_algorithm in ('gost', 3):
         # pylint: disable=no-member
-        hashing = hmac.new(b'', digestmod=pygost.gost341194)
+        hashing = pygost.gost341194.new()
     elif zonemd_algorithm in ('sha384', 4):
-        hashing = hmac.new(b'', digestmod='sha384')
+        hashing = hashlib.sha384()
 
     # Sort the names in the zone. This is needed for canonization.
     sorted_names = sorted(zone.keys())
@@ -298,13 +299,13 @@ def validate_zonemd(zone):
 
     # Verify that the SOA matches between the SOA and the ZONEMD.
     if soa.serial != zonemd.serial:
-        err = (f"SOA serial {soa.serial} does not " +
-               f"match ZONEMD serial {zonemd.serial}")
+        err = ("SOA serial " + str(soa.serial) + " does not " +
+               "match ZONEMD serial " + str(zonemd.serial))
         return False, err
 
     # Verify that we understand the digest algorithm.
     if zonemd.algorithm not in _EMPTY_DIGEST_BY_ALGORITHM:
-        err = f"Unknown digest algorithm {zonemd.algorithm}"
+        err = "Unknown digest algorithm " + str(zonemd.algorithm)
         return False, err
 
     # Put a placeholder in for the ZONEMD.
@@ -319,8 +320,8 @@ def validate_zonemd(zone):
     if digest != zonemd.digest:
         zonemd_hex = binascii.b2a_hex(zonemd.digest).decode()
         digest_hex = binascii.b2a_hex(digest).decode()
-        err = (f"ZONEMD digest {zonemd_hex} does not " +
-               f"match calculated digest {digest_hex}")
+        err = ("ZONEMD digest " + zonemd_hex + " does not " +
+               "match calculated digest " + digest_hex)
         return False, err
 
     # Everything matches, enjoy your zone.
