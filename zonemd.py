@@ -2,7 +2,7 @@
 The zonemd module adds support for the ZONEMD record, as documented
 in:
 
-  https://tools.ietf.org/html/draft-wessels-dns-zone-digest-02
+  https://tools.ietf.org/html/draft-wessels-dns-zone-digest-06
 
 The idea is to provide a zone digest, which is a record that basically
 creates a checksum of the zone file.
@@ -28,10 +28,9 @@ import dns.rdataclass
 import dns.rdataset
 import dns.rdatatype
 import dns.zone
-import pygost.gost341194
 
 # The RTYPE for ZONEMD (use private-use number for now).
-ZONEMD_RTYPE = 65317
+ZONEMD_RTYPE = 63
 
 # Flag to output ZONEMD as an unknown type.
 ZONEMD_AS_GENERIC = False
@@ -111,18 +110,12 @@ class ZoneDigestUnknownAlgorithm(Exception):
 
 # Utility dictionary with the empty digests for each algorithm
 _EMPTY_DIGEST_BY_ALGORITHM = {
-    # SHA1
-    1: b'\0' * 20,
-    # SHA256
-    2: b'\0' * 32,
-    # GOST R 34.11-94
-    3: b'\0' * 32,
     # SHA384
-    4: b'\0' * 48
+    1: b'\0' * 48
 }
 
 
-def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
+def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
     """
     Add a ZONEMD record to a zone. This also removes any existing
     ZONEMD records in the zone.
@@ -135,9 +128,8 @@ def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
 
     @var zone: The zone object to update.
     @type zone: dns.zone.Zone
-    @var zonemd_algorithm: The name of the algorithm to use, either "sha1",
-                          "sha256", "gost", or "sha384", or the number of
-                          the algorithm to use.
+    @var zonemd_algorithm: The name of the algorithm to use,
+                      "sha384", or the number of the algorithm to use.
     @type zonemd_algorithm: str
     @var zonemd_ttl: The TTL to use for the ZONEMD record, or None to
                      get this from the zone SOA.
@@ -147,14 +139,8 @@ def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
 
     Returns the placeholder ZONEMD record added, as a ZONEMD object.
     """
-    if zonemd_algorithm in ('sha1', 1):
+    if zonemd_algorithm in ('sha384', 1):
         algorithm = 1
-    elif zonemd_algorithm in ('sha256', 2):
-        algorithm = 2
-    elif zonemd_algorithm in ('gost', 3):
-        algorithm = 3
-    elif zonemd_algorithm in ('sha384', 4):
-        algorithm = 4
     else:
         msg = 'Unknown digest ' + zonemd_algorithm
         raise ZoneDigestUnknownAlgorithm(msg)
@@ -189,7 +175,7 @@ def add_zonemd(zone, zonemd_algorithm='sha1', zonemd_ttl=None):
     return placeholder_rdata
 
 
-def calculate_zonemd(zone, zonemd_algorithm='sha1'):
+def calculate_zonemd(zone, zonemd_algorithm='sha384'):
     """
     Calculate the digest of the zone.
 
@@ -197,21 +183,13 @@ def calculate_zonemd(zone, zonemd_algorithm='sha1'):
 
     @var zone: The zone object to digest.
     @type zone: dns.zone.Zone
-    @var zonemd_algorithm: The name of the algorithm to use, either "sha1",
-                          "sha256", "gost", or "sha384", or the number of
-                          the algorithm to use.
+    @var zonemd_algorithm: The name of the algorithm to use,
+                  "sha384", or the number of the algorithm to use.
     @type zonemd_algorithm: str
     @raises ZoneDigestUnknownAlgorithm: zonemd_algorithm is unknown
     @rtype: bytes
     """
-    if zonemd_algorithm in ('sha1', 1):
-        hashing = hashlib.sha1()
-    elif zonemd_algorithm in ('sha256', 2):
-        hashing = hashlib.sha256()
-    elif zonemd_algorithm in ('gost', 3):
-        # pylint: disable=no-member
-        hashing = pygost.gost341194.new()
-    elif zonemd_algorithm in ('sha384', 4):
+    if zonemd_algorithm in ('sha384', 1):
         hashing = hashlib.sha384()
 
     # Sort the names in the zone. This is needed for canonization.
@@ -250,7 +228,7 @@ def calculate_zonemd(zone, zonemd_algorithm='sha1'):
     return hashing.digest()
 
 
-def update_zonemd(zone, zonemd_algorithm='sha1'):
+def update_zonemd(zone, zonemd_algorithm='sha384'):
     """
     Calculate the digest of the zone and update the ZONEMD record's
     digest value with that.
@@ -263,8 +241,7 @@ def update_zonemd(zone, zonemd_algorithm='sha1'):
 
     @var zone: The zone object to update.
     @type zone: dns.zone.Zone
-    @var zonemd_algorithm: The name of the algorithm to use, either "sha1",
-                          "sha256", "gost", or "sha384".
+    @var zonemd_algorithm: The name of the algorithm to use, "sha384".
     @type zonemd_algorithm: str
     @rtype: dns.rdataset.Rdataset
     @raises ZoneDigestUnknownAlgorithm: zonemd_algorithm is unknown
@@ -326,3 +303,4 @@ def validate_zonemd(zone):
 
     # Everything matches, enjoy your zone.
     return True, ""
+  
