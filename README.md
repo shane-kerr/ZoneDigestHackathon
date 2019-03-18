@@ -59,7 +59,7 @@ generic output in the style of RFC 3597:
 $ python3 digestify.py -g zonnestelsel.tk.zone
 Wrote ZONEMD digest 9dd24e284e7af7141d09d50c6360b80a823e9d54 to zonnestelsel.tk.zone.zonemd
 $ grep TYPE zonnestelsel.tk.zone.zonemd
-zonnestelsel.tk 300 IN TYPE65317 \# 25 783acfdb019dd24e284e7af7141d09d50c6360b80a823e9d54
+zonnestelsel.tk 300 IN TYPE63 \# 25 24 783acfdb019dd24e284e7af7141d09d50c6360b80a823e9d54
 ```
 
 Validation involves using the "-c" flag to check the file(s):
