@@ -38,8 +38,8 @@ a new file with ".zonemd" added:
 
 ```
 $ grep ZONEMD vanaheimr.cf.zone.zonemd zonnestelsel.tk.zone.zonemd
-vanaheimr.cf.zone.zonemd:vanaheimr.cf 300 IN ZONEMD 2017122152 1 3858b487874286ff34b47aa9190596bc3c9d29c4
-zonnestelsel.tk.zone.zonemd:zonnestelsel.tk 300 IN ZONEMD 2017120219 1 9dd24e284e7af7141d09d50c6360b80a823e9d54
+vanaheimr.cf.zone.zonemd:vanaheimr.cf 300 IN ZONEMD 2017122152 1 0 3858b487874286ff34b47aa9190596bc3c9d29c4
+zonnestelsel.tk.zone.zonemd:zonnestelsel.tk 300 IN ZONEMD 2017120219 1 0 9dd24e284e7af7141d09d50c6360b80a823e9d54
 ```
 
 You can specify an alternate algorithm with the "-a" flag:
@@ -48,7 +48,7 @@ You can specify an alternate algorithm with the "-a" flag:
 $ python3 digestify.py -a sha384 vanaheimr.cf.zone
 Wrote ZONEMD digest 71f03c16524686592b85e2ea732afef7685563c1e127e66da83212cc3a532eb6 to vanaheimr.cf.zone.zonemd
 $ grep ZONEMD vanaheimr.cf.zone.zonemd
-vanaheimr.cf 300 IN ZONEMD 2017122152 3 71f03c16524686592b85e2ea732afef7685563c1e127e66da83212cc3a532eb6
+vanaheimr.cf 300 IN ZONEMD 2017122152 1 0 71f03c16524686592b85e2ea732afef7685563c1e127e66da83212cc3a532eb6
 ```
 
 If you are planning on importing the zone file into a server that does
