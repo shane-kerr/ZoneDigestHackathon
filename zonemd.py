@@ -77,8 +77,8 @@ class ZONEMD(dns.rdata.Rdata):
                     binascii.b2a_hex(rdata).decode())
         else:
             digest_hex = binascii.b2a_hex(self.digest).decode()
-            text = (str(self.serial) + ' 0 ' +
-                    str(self.algorithm) + ' ' + digest_hex)
+            text = (str(self.serial) + ' ' +
+                    str(self.algorithm) + ' 0 ' + digest_hex)
         return text
 
     # pylint: disable=too-many-arguments
