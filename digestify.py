@@ -26,9 +26,9 @@ def main():
     parser.add_argument('--check', '-c', action='store_true',
                         help="check ZONEMD in zone file")
     parser.add_argument('--algorithm', '-a',
-                        help="set algorithm to use (defaults to sha1)",
-                        choices=('sha1', 'sha256', 'gost', 'sha384'),
-                        default='sha1')
+                        help="set algorithm to use (defaults to sha384)",
+                        choices=(['sha384']),
+                        default='sha384')
     parser.add_argument('--generic', '-g', action='store_true',
                         help=f"treat ZONEMD as an unknown type (RFC 3597)")
     parser.add_argument('--placeholder', '-p', action='store_true',
@@ -55,7 +55,7 @@ def main():
         if args.check:
             okay, err = zonemd.validate_zonemd(zone)
             if okay:
-                print(f"{filename} is has a valid digest")
+                print(f"{filename} has a valid digest")
             else:
                 print(f"{filename} does NOT have a valid digest: {err}")
                 exit_code = 1
