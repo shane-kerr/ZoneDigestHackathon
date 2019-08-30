@@ -67,7 +67,8 @@ class ZONEMD(dns.rdata.Rdata):
         """
         Convert to a format suitable for digesting in hashes.
         """
-        return struct.pack('!IBB', self.serial, self.algorithm, self.reserved) + self.digest
+        return struct.pack('!IBB', self.serial,
+                           self.algorithm, self.reserved) + self.digest
 
     def to_text(self, origin=None, relativize=True, **kw):
         """
