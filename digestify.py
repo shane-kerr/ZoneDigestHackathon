@@ -2,7 +2,7 @@
 Take a zone file, compute the digest, and add the appropriate ZONEMD record.
 
 Usage:
-   python3 digestify.py [-c] [-a algorithm] [filename [...]]
+   python3 digestify.py [-c] [-a algorithm] [-o origin] [filename [...]]
 """
 import argparse
 import binascii
@@ -33,6 +33,8 @@ def main():
                         help=f"treat ZONEMD as an unknown type (RFC 3597)")
     parser.add_argument('--placeholder', '-p', action='store_true',
                         help='output a placeholder digest')
+    parser.add_argument('--origin', '-o', type=str, default=".",
+                        help="zone origin")
     parser.add_argument('filename', nargs='+')
     args = parser.parse_args()
 
@@ -51,7 +53,7 @@ def main():
     exit_code = 0
     for filename in args.filename:
         zone = dns.zone.from_file(filename, check_origin=False,
-                                  relativize=False, origin='.')
+                                  relativize=False, origin=args.origin)
         if args.check:
             okay, err = zonemd.validate_zonemd(zone)
             if okay:
@@ -67,7 +69,7 @@ def main():
             digest_hex = binascii.b2a_hex(zone_rr.digest).decode()
             zonemd_filename = filename + ".zonemd"
             with open(zonemd_filename, "w") as output_fp:
-                zone.to_file(output_fp)
+                zone.to_file(output_fp, relativize=False)
             print(f"Wrote ZONEMD digest {digest_hex} to {zonemd_filename}")
 
     sys.exit(exit_code)

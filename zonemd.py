@@ -157,7 +157,6 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
     # Also find the first name, which will be the zone name.
     for name in zone:
         zone.delete_rdataset(name, ZONEMD_RTYPE)
-    zone_name = min(zone.keys())
 
     # Get the zone name.
     zone_name = min(zone.keys())
