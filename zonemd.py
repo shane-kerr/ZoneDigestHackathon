@@ -42,6 +42,7 @@ class ZONEMD(dns.rdata.Rdata):
     class.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self, rdclass, serial, algorithm, reserved, digest):
         """
         Initialize the ZONEMD RDATA.
@@ -111,7 +112,6 @@ class ZoneDigestUnknownAlgorithm(Exception):
     Exception raised if an unknown algorithm is used with ZONEMD
     functions.
     """
-    pass
 
 
 # Utility dictionary with the empty digests for each algorithm
