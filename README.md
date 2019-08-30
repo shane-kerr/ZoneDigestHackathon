@@ -42,7 +42,8 @@ vanaheimr.cf.zone.zonemd:vanaheimr.cf 300 IN ZONEMD 2017122152 1 0 3858b48787428
 zonnestelsel.tk.zone.zonemd:zonnestelsel.tk 300 IN ZONEMD 2017120219 1 0 9dd24e284e7af7141d09d50c6360b80a823e9d54
 ```
 
-You can specify an alternate algorithm with the "-a" flag:
+You can specify an alternate algorithm with the "-a" flag, although
+currently only sha384 is supported:
 
 ```
 $ python3 digestify.py -a sha384 vanaheimr.cf.zone

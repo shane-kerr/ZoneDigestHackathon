@@ -29,7 +29,7 @@ import dns.rdataset
 import dns.rdatatype
 import dns.zone
 
-# The RTYPE for ZONEMD (use private-use number for now).
+# The RTYPE for ZONEMD.
 ZONEMD_RTYPE = 63
 
 # Flag to output ZONEMD as an unknown type.
