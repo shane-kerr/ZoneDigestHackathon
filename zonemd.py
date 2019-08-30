@@ -2,7 +2,7 @@
 The zonemd module adds support for the ZONEMD record, as documented
 in:
 
-  https://tools.ietf.org/html/draft-wessels-dns-zone-digest-02
+  https://tools.ietf.org/html/draft-wessels-dns-zone-digest-06
 
 The idea is to provide a zone digest, which is a record that basically
 creates a checksum of the zone file.

@@ -4,7 +4,7 @@ Prototype implementation of ZONEMD for the IETF 102 hackathon.
 This implementation provides code to generate or validate zone digests
 as described in this Internet draft:
 
-https://tools.ietf.org/html/draft-wessels-dns-zone-digest-02
+https://tools.ietf.org/html/draft-wessels-dns-zone-digest-06
 
 The basic idea is to make a digest - sort of like a checksum - of the
 contents of the zone and include that in the zone as a record.
@@ -16,16 +16,12 @@ the digest and a command-line program to exercise it.
 
 This is a Python 3 module. To use it you need Python 3 installed.
 
-It requires the **dnspython** and **pygost** modules. You can install
+It requires the **dnspython** module. You can install
 these from PyPI in the usual way with `pip`:
 
 ```
 $ pip install -r requirements.txt
 ```
-
-In principle the software can be run without GOST support, and so the
-**pygost** module is not strictly required. However since it's so easy
-to install I opted against updating the code to work without it.
 
 ## Running
 
@@ -42,17 +38,17 @@ a new file with ".zonemd" added:
 
 ```
 $ grep ZONEMD vanaheimr.cf.zone.zonemd zonnestelsel.tk.zone.zonemd
-vanaheimr.cf.zone.zonemd:vanaheimr.cf 300 IN ZONEMD 2017122152 1 3858b487874286ff34b47aa9190596bc3c9d29c4
-zonnestelsel.tk.zone.zonemd:zonnestelsel.tk 300 IN ZONEMD 2017120219 1 9dd24e284e7af7141d09d50c6360b80a823e9d54
+vanaheimr.cf.zone.zonemd:vanaheimr.cf 300 IN ZONEMD 2017122152 1 0 3858b487874286ff34b47aa9190596bc3c9d29c4
+zonnestelsel.tk.zone.zonemd:zonnestelsel.tk 300 IN ZONEMD 2017120219 1 0 9dd24e284e7af7141d09d50c6360b80a823e9d54
 ```
 
 You can specify an alternate algorithm with the "-a" flag:
 
 ```
-$ python3 digestify.py -a gost vanaheimr.cf.zone
+$ python3 digestify.py -a sha384 vanaheimr.cf.zone
 Wrote ZONEMD digest 71f03c16524686592b85e2ea732afef7685563c1e127e66da83212cc3a532eb6 to vanaheimr.cf.zone.zonemd
 $ grep ZONEMD vanaheimr.cf.zone.zonemd
-vanaheimr.cf 300 IN ZONEMD 2017122152 3 71f03c16524686592b85e2ea732afef7685563c1e127e66da83212cc3a532eb6
+vanaheimr.cf 300 IN ZONEMD 2017122152 1 0 71f03c16524686592b85e2ea732afef7685563c1e127e66da83212cc3a532eb6
 ```
 
 If you are planning on importing the zone file into a server that does
@@ -63,7 +59,7 @@ generic output in the style of RFC 3597:
 $ python3 digestify.py -g zonnestelsel.tk.zone
 Wrote ZONEMD digest 9dd24e284e7af7141d09d50c6360b80a823e9d54 to zonnestelsel.tk.zone.zonemd
 $ grep TYPE zonnestelsel.tk.zone.zonemd
-zonnestelsel.tk 300 IN TYPE65317 \# 25 783acfdb019dd24e284e7af7141d09d50c6360b80a823e9d54
+zonnestelsel.tk 300 IN TYPE63 \# 26 783acfdb019dd24e284e7af7141d09d50c6360b80a823e9d54BlaBlaEtc
 ```
 
 Validation involves using the "-c" flag to check the file(s):
@@ -76,7 +72,7 @@ zonnestelsel.tk.zone.zonemd is has a valid digest
 Any error will be reported with some hopefully helpful information:
 
 ```
-$ python3 digestify.py -a sha256 zonnestelsel.tk.zone
+$ python3 digestify.py -a sha384 zonnestelsel.tk.zone
 Wrote ZONEMD digest ae0b88b5d9784ded8ed2e497791c71e8accb70ea3c708fdc73f34255da66cb69 to zonnestelsel.tk.zone.zonemd
 $ sed 's/ 2 / 9 /' zonnestelsel.tk.zone.zonemd > broken.zone.zonemd
 $ python3 digestify.py -c broken.zone.zonemd
