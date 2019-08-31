@@ -32,6 +32,9 @@ import dns.zone
 # The RTYPE for ZONEMD.
 ZONEMD_RTYPE = 63
 
+# Digest types for ZONEMD.
+ZONEMD_DIGEST_SHA384 = 1
+
 # Flag to output ZONEMD as an unknown type.
 ZONEMD_AS_GENERIC = False
 
@@ -117,7 +120,7 @@ class ZoneDigestUnknownAlgorithm(Exception):
 # Utility dictionary with the empty digests for each algorithm
 _EMPTY_DIGEST_BY_ALGORITHM = {
     # SHA384
-    1: b'\0' * 48
+    ZONEMD_DIGEST_SHA384: b'\0' * 48
 }
 
 
@@ -145,7 +148,7 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
 
     Returns the placeholder ZONEMD record added, as a ZONEMD object.
     """
-    if zonemd_algorithm in ('sha384', 1):
+    if zonemd_algorithm in ('sha384', ZONEMD_DIGEST_SHA384):
         algorithm = 1
     else:
         msg = 'Unknown digest ' + zonemd_algorithm
@@ -153,13 +156,11 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
 
     empty_digest = _EMPTY_DIGEST_BY_ALGORITHM[algorithm]
 
-    # Remove any existing ZONEMD from the zone.
-    # Also find the first name, which will be the zone name.
-    for name in zone:
-        zone.delete_rdataset(name, ZONEMD_RTYPE)
-
     # Get the zone name.
     zone_name = min(zone.keys())
+
+    # Remove any existing ZONEMD from the apex.
+    zone.delete_rdataset(zone_name, ZONEMD_RTYPE)
 
     # Get the SOA.
     soa_rdataset = zone.get_rdataset(zone_name, dns.rdatatype.SOA)
@@ -194,7 +195,7 @@ def calculate_zonemd(zone, zonemd_algorithm='sha384'):
     @raises ZoneDigestUnknownAlgorithm: zonemd_algorithm is unknown
     @rtype: bytes
     """
-    if zonemd_algorithm in ('sha384', 1):
+    if zonemd_algorithm in ('sha384', ZONEMD_DIGEST_SHA384):
         hashing = hashlib.sha384()
 
     # Sort the names in the zone. This is needed for canonization.
@@ -277,30 +278,40 @@ def validate_zonemd(zone):
     zone_name = min(zone.keys())
     soa_rdataset = zone.get_rdataset(zone_name, dns.rdatatype.SOA)
     soa = soa_rdataset.items[0]
-    zonemd = zone.find_rdataset(zone_name, ZONEMD_RTYPE).items[0]
+#    zonemd = zone.find_rdataset(zone_name, ZONEMD_RTYPE).items[0]
 
-    # Verify that the SOA matches between the SOA and the ZONEMD.
-    if soa.serial != zonemd.serial:
-        err = ("SOA serial " + str(soa.serial) + " does not " +
-               "match ZONEMD serial " + str(zonemd.serial))
-        return False, err
+    original_digests = {}
+    for zonemd in zone.find_rdataset(zone_name, ZONEMD_RTYPE).items:
+        # Verify that the SOA matches between the SOA and the ZONEMD.
+        if soa.serial != zonemd.serial:
+            err = ("SOA serial " + str(soa.serial) + " does not " +
+                   "match ZONEMD serial " + str(zonemd.serial))
+            return False, err
 
-    # Verify that we understand the digest algorithm.
-    if zonemd.algorithm not in _EMPTY_DIGEST_BY_ALGORITHM:
-        err = "Unknown digest algorithm " + str(zonemd.algorithm)
-        return False, err
+        # Save the original digest.
+        if zonemd.algorithm in original_digests:
+            err = ("Digest algorithm " + str(zonemd.algorithm) +
+                   "used more than once")
+            return False, err
+        original_digests[zonemd.algorithm] = zonemd.digest
 
-    # Put a placeholder in for the ZONEMD.
-    original_digest = zonemd.digest
-    zonemd.digest = _EMPTY_DIGEST_BY_ALGORITHM[zonemd.algorithm]
+        # Put a placeholder in for the ZONEMD.
+        if zonemd.algorithm in _EMPTY_DIGEST_BY_ALGORITHM:
+            zonemd.digest = _EMPTY_DIGEST_BY_ALGORITHM[zonemd.algorithm]
+        else:
+            zonemd.digest = b'\0' * len(zonemd.digest)
 
-    # Calculate the digest and restore ZONEMD.
-    digest = calculate_zonemd(zone, zonemd.algorithm)
-    zonemd.digest = original_digest
+    # Calculate the digest.
+    digest = calculate_zonemd(zone)
+
+    # Restore ZONEMD.
+    for zonemd in zone.find_rdataset(zone_name, ZONEMD_RTYPE).items:
+        zonemd.digest = original_digests[zonemd.algorithm]
 
     # Verify the digest in the zone matches the calculated value.
-    if digest != zonemd.digest:
-        zonemd_hex = binascii.b2a_hex(zonemd.digest).decode()
+    if digest != original_digests[ZONEMD_DIGEST_SHA384]:
+        zonemd_b2a = binascii.b2a_hex(original_digest[ZONEMD_DIGEST_SHA384])
+        zonemd_hex = zonemd_b2a.decode()
         digest_hex = binascii.b2a_hex(digest).decode()
         err = ("ZONEMD digest " + zonemd_hex + " does not " +
                "match calculated digest " + digest_hex)

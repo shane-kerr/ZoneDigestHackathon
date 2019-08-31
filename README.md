@@ -4,7 +4,7 @@ Prototype implementation of ZONEMD for the IETF 102 hackathon.
 This implementation provides code to generate or validate zone digests
 as described in this Internet draft:
 
-https://tools.ietf.org/html/draft-wessels-dns-zone-digest-06
+https://tools.ietf.org/html/draft-ietf-dnsop-dns-zone-digest-00
 
 The basic idea is to make a digest - sort of like a checksum - of the
 contents of the zone and include that in the zone as a record.
