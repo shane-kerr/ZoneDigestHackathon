@@ -310,7 +310,7 @@ def validate_zonemd(zone):
 
     # Verify the digest in the zone matches the calculated value.
     if digest != original_digests[ZONEMD_DIGEST_SHA384]:
-        zonemd_b2a = binascii.b2a_hex(original_digest[ZONEMD_DIGEST_SHA384])
+        zonemd_b2a = binascii.b2a_hex(original_digests[ZONEMD_DIGEST_SHA384])
         zonemd_hex = zonemd_b2a.decode()
         digest_hex = binascii.b2a_hex(digest).decode()
         err = ("ZONEMD digest " + zonemd_hex + " does not " +
