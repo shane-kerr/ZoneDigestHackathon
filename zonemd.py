@@ -195,6 +195,11 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
 
     return placeholder_rdata
 
+def rdataset_sorter(rdataset):
+    wire_rdata = rdataset[0].to_digestable()
+    wire_rdata_len = len(wire_rdata)
+    return (rdataset.rdtype, wire_rdata_len, wire_rdata)
+
 
 def calculate_zonemd(zone, zonemd_algorithm='sha384'):
     """
@@ -228,7 +233,7 @@ def calculate_zonemd(zone, zonemd_algorithm='sha384'):
 
         # Iterate across each RRSET in canonical order.
         sorted_rdatasets = sorted(zone.find_node(name).rdatasets,
-                                  key=lambda rdataset: rdataset.rdtype)
+                                  key=rdataset_sorter)
         for rdataset in sorted_rdatasets:
             if name == zone.origin:
                 # Skip apex ZONEMD.
