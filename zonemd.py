@@ -97,7 +97,18 @@ class ZONEMD(dns.rdata.Rdata):
         serial = tok.get_uint32()
         scheme = tok.get_uint8()
         algorithm = tok.get_uint8()
-        digest = binascii.a2b_hex(tok.get_string())
+	# Not sure why calling tok.concatenate_remaining_identifiers() here
+        # causes an exception.  The loop below is copied from dns/tokenizer.py
+        tdigest = ""
+        while True:
+            token = tok.get().unescape()
+            if token.is_eol_or_eof():
+                tok.unget(token)
+                break
+            if not token.is_identifier():
+                raise dns.exception.SyntaxError
+            tdigest += token.value
+        digest = binascii.a2b_hex(tdigest)
         return cls(rdclass, serial, scheme, algorithm, digest)
 
     def to_wire(self, file, compress=None, origin=None):
