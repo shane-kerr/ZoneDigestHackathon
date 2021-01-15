@@ -210,10 +210,14 @@ def calculate_zonemd(zone, zonemd_algorithm='sha384'):
         sorted_rdatasets = sorted(zone.find_node(name).rdatasets,
                                   key=lambda rdataset: rdataset.rdtype)
         for rdataset in sorted_rdatasets:
-            # Skip the RRSIG for ZONEMD.
-            if rdataset.rdtype == dns.rdatatype.RRSIG:
-                if rdataset.covers == ZONEMD_RTYPE:
+            if name == zone.origin:
+                # Skip apex ZONEMD.
+                if rdataset.rdtype == ZONEMD_RTYPE:
                     continue
+                # Skip apex RRSIG for ZONEMD.
+                if rdataset.rdtype == dns.rdatatype.RRSIG:
+                    if rdataset.covers == ZONEMD_RTYPE:
+                        continue
 
             # Save the wire format of the type, class, and TTL for later use.
             wire_set = struct.pack('!HHI', rdataset.rdtype, rdataset.rdclass,
