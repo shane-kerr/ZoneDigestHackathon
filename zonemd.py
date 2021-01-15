@@ -255,7 +255,6 @@ def calculate_zonemd(zone, zonemd_algorithm='sha384'):
 
             # Finally update the digest for each RR.
             for wire_rr in wire_rdatas:
-                #print(wire_name + b' ' + wire_set + b' ' + struct.pack('!H', len(wire_rr)) + b' ' + wire_rr)
                 hashing.update(wire_name)
                 hashing.update(wire_set)
                 hashing.update(struct.pack('!H', len(wire_rr)))
