@@ -178,7 +178,7 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
     placeholder = dns.rdataset.Rdataset(dns.rdataclass.IN, ZONEMD_RTYPE)
     placeholder.update_ttl(zonemd_ttl)
     placeholder_rdata = ZONEMD(dns.rdataclass.IN, soa.serial,
-                               algorithm, 0, empty_digest)
+                               1, algorithm, empty_digest)
     placeholder.add(placeholder_rdata)
     zone.replace_rdataset(zone_name, placeholder)
 
@@ -302,10 +302,14 @@ def validate_zonemd(zone):
                    "match ZONEMD serial " + str(zonemd.serial))
             return False, err
 
+        # check for supported scheme
+        if zonemd.scheme != 1:
+            continue
+
         # Save the original digest.
         if zonemd.algorithm in original_digests:
             err = ("Digest algorithm " + str(zonemd.algorithm) +
-                   "used more than once")
+                   " used more than once")
             return False, err
         original_digests[zonemd.algorithm] = zonemd.digest
 
