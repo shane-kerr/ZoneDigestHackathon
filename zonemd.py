@@ -197,8 +197,7 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
 
 def rdataset_sorter(rdataset):
     wire_rdata = rdataset[0].to_digestable()
-    wire_rdata_len = len(wire_rdata)
-    return (rdataset.rdtype, wire_rdata_len, wire_rdata)
+    return (rdataset.rdtype, wire_rdata)
 
 
 def calculate_zonemd(zone, zonemd_algorithm='sha384'):
