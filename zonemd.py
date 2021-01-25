@@ -308,12 +308,19 @@ def validate_zonemd(zone):
     """
     # Get the SOA and ZONEMD records for the zone.
     zone_name = min(zone.keys())
-    soa_rdataset = zone.get_rdataset(zone_name, dns.rdatatype.SOA)
-    soa = soa_rdataset.items[0]
-#    zonemd = zone.find_rdataset(zone_name, ZONEMD_RTYPE).items[0]
+    try:
+        soa_rdataset = zone.get_rdataset(zone_name, dns.rdatatype.SOA)
+        soa = soa_rdataset.items[0]
+    except KeyError:
+        return False, "No valid SOA record found"
+    try:
+        rdatasets = zone.find_rdataset(zone_name, ZONEMD_RTYPE)
+    except KeyError:
+        return False, "No ZONEMD digest record found"
 
+    digests = {}
     original_digests = {}
-    for zonemd in zone.find_rdataset(zone_name, ZONEMD_RTYPE).items:
+    for zonemd in rdatasets.items:
         # Verify that the SOA matches between the SOA and the ZONEMD.
         if soa.serial != zonemd.serial:
             err = ("SOA serial " + str(soa.serial) + " does not " +
@@ -337,18 +344,18 @@ def validate_zonemd(zone):
         else:
             zonemd.digest = b'\0' * len(zonemd.digest)
 
-    # Calculate the digest.
-    digest = calculate_zonemd(zone, zonemd.algorithm)
+        # Calculate the digest.
+        digests[zonemd.algorithm] = calculate_zonemd(zone, zonemd.algorithm)
 
     # Restore ZONEMD.
     for zonemd in zone.find_rdataset(zone_name, ZONEMD_RTYPE).items:
         zonemd.digest = original_digests[zonemd.algorithm]
 
     # Verify the digest in the zone matches the calculated value.
-    if digest != original_digests[zonemd.algorithm]:
+    if digests[zonemd.algorithm] != original_digests[zonemd.algorithm]:
         zonemd_b2a = binascii.b2a_hex(original_digests[zonemd.algorithm])
         zonemd_hex = zonemd_b2a.decode()
-        digest_hex = binascii.b2a_hex(digest).decode()
+        digest_hex = binascii.b2a_hex(digests[zonemd.algorithm]).decode()
         err = ("ZONEMD digest " + zonemd_hex + " does not " +
                "match calculated digest " + digest_hex)
         return False, err
