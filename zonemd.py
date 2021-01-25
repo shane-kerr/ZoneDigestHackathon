@@ -34,6 +34,7 @@ ZONEMD_RTYPE = 63
 
 # Digest types for ZONEMD.
 ZONEMD_DIGEST_SHA384 = 1
+ZONEMD_DIGEST_SHA512 = 2
 
 # Flag to output ZONEMD as an unknown type.
 ZONEMD_AS_GENERIC = False
@@ -46,7 +47,7 @@ class ZONEMD(dns.rdata.Rdata):
     """
 
     # pylint: disable=too-many-arguments
-    def __init__(self, rdclass, serial, algorithm, reserved, digest):
+    def __init__(self, rdclass, serial, scheme, algorithm, digest):
         """
         Initialize the ZONEMD RDATA.
         @param rdlass: The RDATA class.
@@ -54,17 +55,17 @@ class ZONEMD(dns.rdata.Rdata):
         @param serial: The ZONEMD serial number for the RDATA (which should be
                        the same as the SOA serial number).
         @type serial: int
+        @param scheme: ZONEMD collation scheme
+        @type scheme: int
         @param algorithm: The digest algorithm to use.
         @type algorithm: int
-        @param reserved: Reserved for future use
-        @type reserved: int
         @param digest: The digest for the zone.
         @type digest: bytes
         """
         super().__init__(rdclass, ZONEMD_RTYPE)
         self.serial = serial
+        self.scheme = scheme
         self.algorithm = algorithm
-        self.reserved = reserved
         self.digest = digest
 
     def to_digestable(self, origin=None):
@@ -72,7 +73,7 @@ class ZONEMD(dns.rdata.Rdata):
         Convert to a format suitable for digesting in hashes.
         """
         return struct.pack('!IBB', self.serial,
-                           self.algorithm, self.reserved) + self.digest
+                           self.scheme, self.algorithm) + self.digest
 
     def to_text(self, origin=None, relativize=True, **kw):
         """
@@ -86,18 +87,29 @@ class ZONEMD(dns.rdata.Rdata):
         else:
             digest_hex = binascii.b2a_hex(self.digest).decode()
             text = (str(self.serial) + ' ' +
-                    str(self.algorithm) + ' ' +
-                    str(self.reserved) + ' ' + digest_hex)
+                    str(self.scheme) + ' ' +
+                    str(self.algorithm) + ' ' + digest_hex)
         return text
 
     # pylint: disable=too-many-arguments
     @classmethod
     def from_text(cls, rdclass, rdtype, tok, origin=None, relativize=True):
         serial = tok.get_uint32()
+        scheme = tok.get_uint8()
         algorithm = tok.get_uint8()
-        reserved = tok.get_uint8()
-        digest = binascii.a2b_hex(tok.get_string())
-        return cls(rdclass, serial, algorithm, reserved, digest)
+	# Not sure why calling tok.concatenate_remaining_identifiers() here
+        # causes an exception.  The loop below is copied from dns/tokenizer.py
+        tdigest = ""
+        while True:
+            token = tok.get().unescape()
+            if token.is_eol_or_eof():
+                tok.unget(token)
+                break
+            if not token.is_identifier():
+                raise dns.exception.SyntaxError
+            tdigest += token.value
+        digest = binascii.a2b_hex(tdigest)
+        return cls(rdclass, serial, scheme, algorithm, digest)
 
     def to_wire(self, file, compress=None, origin=None):
         file.write(self.to_digestable())
@@ -105,9 +117,9 @@ class ZONEMD(dns.rdata.Rdata):
     # pylint: disable=too-many-arguments
     @classmethod
     def from_wire(cls, rdclass, rdtype, wire, current, rdlen, origin=None):
-        serial, algorithm, reserved = struct.unpack('!IBB', wire[:6])
+        serial, scheme, algorithm = struct.unpack('!IBB', wire[:6])
         digest = wire[6:]
-        return cls(rdclass, serial, algorithm, reserved, digest)
+        return cls(rdclass, serial, scheme, algorithm, digest)
 
 
 class ZoneDigestUnknownAlgorithm(Exception):
@@ -120,7 +132,8 @@ class ZoneDigestUnknownAlgorithm(Exception):
 # Utility dictionary with the empty digests for each algorithm
 _EMPTY_DIGEST_BY_ALGORITHM = {
     # SHA384
-    ZONEMD_DIGEST_SHA384: b'\0' * 48
+    ZONEMD_DIGEST_SHA384: b'\0' * 48,
+    ZONEMD_DIGEST_SHA512: b'\0' * 64
 }
 
 
@@ -150,6 +163,8 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
     """
     if zonemd_algorithm in ('sha384', ZONEMD_DIGEST_SHA384):
         algorithm = 1
+    elif zonemd_algorithm in ('sha512', ZONEMD_DIGEST_SHA512):
+        algorithm = 2
     else:
         msg = 'Unknown digest ' + zonemd_algorithm
         raise ZoneDigestUnknownAlgorithm(msg)
@@ -174,11 +189,15 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
     placeholder = dns.rdataset.Rdataset(dns.rdataclass.IN, ZONEMD_RTYPE)
     placeholder.update_ttl(zonemd_ttl)
     placeholder_rdata = ZONEMD(dns.rdataclass.IN, soa.serial,
-                               algorithm, 0, empty_digest)
+                               1, algorithm, empty_digest)
     placeholder.add(placeholder_rdata)
     zone.replace_rdataset(zone_name, placeholder)
 
     return placeholder_rdata
+
+def rdataset_sorter(rdataset):
+    wire_rdata = rdataset[0].to_digestable()
+    return (rdataset.rdtype, wire_rdata)
 
 
 def calculate_zonemd(zone, zonemd_algorithm='sha384'):
@@ -197,6 +216,11 @@ def calculate_zonemd(zone, zonemd_algorithm='sha384'):
     """
     if zonemd_algorithm in ('sha384', ZONEMD_DIGEST_SHA384):
         hashing = hashlib.sha384()
+    elif zonemd_algorithm in ('sha512', ZONEMD_DIGEST_SHA512):
+        hashing = hashlib.sha512()
+    else:
+        msg = 'Unknown or unsupported algorithm ' + str(zonemd_algorithm)
+        raise ZoneDigestUnknownAlgorithm(msg)
 
     # Sort the names in the zone. This is needed for canonization.
     sorted_names = sorted(zone.keys())
@@ -208,12 +232,16 @@ def calculate_zonemd(zone, zonemd_algorithm='sha384'):
 
         # Iterate across each RRSET in canonical order.
         sorted_rdatasets = sorted(zone.find_node(name).rdatasets,
-                                  key=lambda rdataset: rdataset.rdtype)
+                                  key=rdataset_sorter)
         for rdataset in sorted_rdatasets:
-            # Skip the RRSIG for ZONEMD.
-            if rdataset.rdtype == dns.rdatatype.RRSIG:
-                if rdataset.covers == ZONEMD_RTYPE:
+            if name == zone.origin:
+                # Skip apex ZONEMD.
+                if rdataset.rdtype == ZONEMD_RTYPE:
                     continue
+                # Skip apex RRSIG for ZONEMD.
+                if rdataset.rdtype == dns.rdatatype.RRSIG:
+                    if rdataset.covers == ZONEMD_RTYPE:
+                        continue
 
             # Save the wire format of the type, class, and TTL for later use.
             wire_set = struct.pack('!HHI', rdataset.rdtype, rdataset.rdclass,
@@ -288,10 +316,14 @@ def validate_zonemd(zone):
                    "match ZONEMD serial " + str(zonemd.serial))
             return False, err
 
+        # check for supported scheme
+        if zonemd.scheme != 1:
+            continue
+
         # Save the original digest.
         if zonemd.algorithm in original_digests:
             err = ("Digest algorithm " + str(zonemd.algorithm) +
-                   "used more than once")
+                   " used more than once")
             return False, err
         original_digests[zonemd.algorithm] = zonemd.digest
 
@@ -302,15 +334,15 @@ def validate_zonemd(zone):
             zonemd.digest = b'\0' * len(zonemd.digest)
 
     # Calculate the digest.
-    digest = calculate_zonemd(zone)
+    digest = calculate_zonemd(zone, zonemd.algorithm)
 
     # Restore ZONEMD.
     for zonemd in zone.find_rdataset(zone_name, ZONEMD_RTYPE).items:
         zonemd.digest = original_digests[zonemd.algorithm]
 
     # Verify the digest in the zone matches the calculated value.
-    if digest != original_digests[ZONEMD_DIGEST_SHA384]:
-        zonemd_b2a = binascii.b2a_hex(original_digest[ZONEMD_DIGEST_SHA384])
+    if digest != original_digests[zonemd.algorithm]:
+        zonemd_b2a = binascii.b2a_hex(original_digests[zonemd.algorithm])
         zonemd_hex = zonemd_b2a.decode()
         digest_hex = binascii.b2a_hex(digest).decode()
         err = ("ZONEMD digest " + zonemd_hex + " does not " +
