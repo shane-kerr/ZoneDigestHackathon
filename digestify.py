@@ -27,10 +27,10 @@ def main():
                         help="check ZONEMD in zone file")
     parser.add_argument('--algorithm', '-a',
                         help="set algorithm to use (defaults to sha384)",
-                        choices=(['sha384','sha512']),
+                        choices=(['sha384', 'sha512']),
                         default='sha384')
     parser.add_argument('--generic', '-g', action='store_true',
-                        help=f"treat ZONEMD as an unknown type (RFC 3597)")
+                        help="treat ZONEMD as an unknown type (RFC 3597)")
     parser.add_argument('--placeholder', '-p', action='store_true',
                         help='output a placeholder digest')
     parser.add_argument('--origin', '-o', type=str, default=".",

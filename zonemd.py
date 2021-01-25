@@ -97,7 +97,7 @@ class ZONEMD(dns.rdata.Rdata):
         serial = tok.get_uint32()
         scheme = tok.get_uint8()
         algorithm = tok.get_uint8()
-	# Not sure why calling tok.concatenate_remaining_identifiers() here
+        # Not sure why calling tok.concatenate_remaining_identifiers() here
         # causes an exception.  The loop below is copied from dns/tokenizer.py
         tdigest = ""
         while True:
@@ -194,6 +194,7 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
     zone.replace_rdataset(zone_name, placeholder)
 
     return placeholder_rdata
+
 
 def rdataset_sorter(rdataset):
     wire_rdata = rdataset[0].to_digestable()
