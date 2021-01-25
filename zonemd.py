@@ -197,6 +197,9 @@ def add_zonemd(zone, zonemd_algorithm='sha384', zonemd_ttl=None):
 
 
 def rdataset_sorter(rdataset):
+    """
+    Utility function used to get RDATA in the proper order.
+    """
     wire_rdata = rdataset[0].to_digestable()
     return (rdataset.rdtype, wire_rdata)
 
