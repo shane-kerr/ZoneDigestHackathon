@@ -1,6 +1,12 @@
 # ZoneDigestHackathon
 Prototype implementation of ZONEMD for the IETF 102 hackathon.
 
+----
+
+# This functionality is now part of the dnspython library, so this  repository is no longer necessary. For posterity we will leave it archived here.
+
+----
+
 This implementation provides code to generate or validate zone digests
 as described in this Internet draft:
 
